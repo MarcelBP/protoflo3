@@ -1,5 +1,6 @@
 # ProtoFlo - Flow-Based Programming experiments in Python
 # Copyright (c) 2014 Jon Nordby <jononor@gmail.com>
+# Python3 adjustment 
 # ProtoFlo may be freely distributed under the MIT license
 ##
 
@@ -7,9 +8,9 @@ import sys, os
 import functools
 import json
 import subprocess
-import httplib
+import http.client
 import uuid
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import time
 
 import numpy
@@ -71,7 +72,7 @@ class Nary(Component):
         # Store new data for @port
         p = self.ports.get(port, None)
         if not p:
-            raise ValueError, 'No port named %s in Nary(X)' % port
+            raise ValueError('No port named %s in Nary(X)' % port)
         p.value = data
 
         # Re-evaluate function
@@ -107,10 +108,10 @@ def map_literal(data):
     for conv in converters:
         try:
             return conv(data)
-        except (ValueError, TypeError), e:
+        except (ValueError, TypeError) as e:
             continue
 
-    raise Error, 'Should never be reached'
+    raise Error('Should never be reached')
 
 class Network(object):
     def __init__(self, graph):
@@ -125,7 +126,7 @@ class Network(object):
     def start(self):
         # Instantiate components
         graph = self._graph
-        for name, data in graph['processes'].items():
+        for name, data in list(graph['processes'].items()):
             self._nodes[name] = components[data['component']]()
 
         # Wire up ports, IIPs
@@ -141,8 +142,8 @@ class Network(object):
                 iip = (tgt['process'], tgt['port'], data)
                 self.send(*iip)
             else:
-                raise ValueError, "No src node or IIP"
-       
+                raise ValueError("No src node or IIP")
+
 
     def connect(self, src, srcport, tgt, tgtport):
         if not isinstance(src, Component):
@@ -151,7 +152,7 @@ class Network(object):
             tgt = self._nodes[tgt]
 
         src.ports[srcport].target = (tgt, tgtport)
-     
+
     def send(self, tgt, port, data):
         if not isinstance(tgt, Component):
             tgt = self._nodes[tgt]
@@ -171,7 +172,7 @@ class Network(object):
     def run_iteration(self):
         self._deliver_messages()
 
-        
+
 
 def load_file(path):
     ext = os.path.splitext(path)[1]
@@ -183,7 +184,7 @@ def load_file(path):
         f = open(path, "r")
         return json.loads(f.read())
     else:
-        raise ValueError, "Invalid format for file %s" % path
+        raise ValueError("Invalid format for file %s" % path)
 
 
 from autobahn.twisted.websocket import WebSocketServerProtocol, WebSocketServerFactory
@@ -207,16 +208,16 @@ class NoFloUiProtocol(WebSocketServerProtocol):
 
     def onMessage(self, payload, isBinary):
         if isBinary:
-            raise ValueError, "WebSocket message must be UTF-8"
+            raise ValueError("WebSocket message must be UTF-8")
 
         cmd = json.loads(payload)
-        print cmd
+        print(cmd)
 
         if cmd['protocol'] == 'component' and cmd['command'] == 'list':
-            for name, comp in components.items():
+            for name, comp in list(components.items()):
                 c = comp()
                 # FIXME: separate outports from inports
-                inports = [{ "id": p, "type": "all" } for p in c.ports.keys() if not p == "out"]
+                inports = [{ "id": p, "type": "all" } for p in list(c.ports.keys()) if not p == "out"]
                 payload = { "name": name,
                         "description": "",
                         "inPorts": inports,
@@ -232,7 +233,7 @@ class NoFloUiProtocol(WebSocketServerProtocol):
 def runtime(port):
     log.startLogging(sys.stdout)
 
-    factory = WebSocketServerFactory("ws://localhost:"+str(port), debug = True)
+    factory = WebSocketServerFactory("ws://localhost:"+str(port))
     factory.protocol = NoFloUiProtocol
 
     # Required for Chromium ~33 and newer
@@ -249,7 +250,7 @@ def register(user_id, label, ip, port):
 
     runtime_id = str(uuid.uuid4())
 
-    conn = httplib.HTTPConnection("api.flowhub.io", 80)
+    conn = http.client.HTTPConnection("api.flowhub.io", 80)
     conn.connect()
 
     url = "/runtimes/"+runtime_id
@@ -266,7 +267,7 @@ def register(user_id, label, ip, port):
     if not response.status == 201:
         raise ValueError("Could not create runtime " + str(response.status) + str(response.read()))
     else:
-        print "Runtime registered with ID", runtime_id
+        print("Runtime registered with ID", runtime_id)
 
 if __name__ == "__main__":
 
@@ -296,4 +297,3 @@ if __name__ == "__main__":
         net = Network(load_file(args.file))
         net.start()
         net.run_iteration()
-
