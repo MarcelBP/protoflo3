@@ -4,6 +4,7 @@
 # ProtoFlo may be freely distributed under the MIT license
 ##
 
+
 import sys, os
 import functools
 import json
@@ -227,8 +228,29 @@ class NoFloUiProtocol(WebSocketServerProtocol):
                     "command": "component",
                     "payload": payload,
                 }
-                self.sendMessage(json.dumps(resp))
-
+                print("replied with",resp)
+                self.sendMessage(json.dumps(resp).encode('utf-8'))
+        if cmd['command'] == 'getruntime':
+         resp = {
+                'protocol': 'runtime',
+            'command': 'runtime',
+            'payload': {
+                'id': 'unique-runtime-id',  # replace with actual runtime ID
+                'address': '127.0.0.1',
+                'label': 'My NoFlo Runtime',  # replace with your runtime label
+                'type': 'noflo',
+                'version': '0.8.0',  # replace with actual version
+                'capabilities': [
+                    'protocol:runtime',
+                    'protocol:graph',
+                    'protocol:component',
+                    'protocol:network'
+                ],
+                 'secret': cmd['payload']['secret']
+             }
+         }
+         print("replied with",resp)
+         self.sendMessage(json.dumps(resp).encode('utf-8'))
 
 def runtime(port):
     log.startLogging(sys.stdout)
@@ -259,7 +281,7 @@ def register(user_id, label, ip, port):
         'type': 'protoflo', 'protocol': 'websocket',
         'address': ip+":"+str(port), 'id': runtime_id,
         'label': label, 'port': port, 'user': user_id,
-        'secret': "122223333",
+        'secret': "password",
     }
 
     conn.request("PUT", url, json.dumps(data), headers)
